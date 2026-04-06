@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nhs-preceptorship-transparency",
+      "runtimeExecutable": "/Users/nursingcitizendevelopment/.nvm/versions/node/v20.20.1/bin/npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5177"],
+      "port": 5177
+    }
+  ]
+}

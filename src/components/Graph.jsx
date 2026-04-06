@@ -1,52 +1,55 @@
 import React, { useEffect, useRef } from 'react'
 import cytoscape from 'cytoscape'
-import { NODES, EDGES } from '../data/nodes.js'
-
-const NODE_COLORS = {
-  national: '#005EB8',      // NHS Blue
-  regional: '#41B6E6',      // NHS Light Blue
-  trust: '#00A499',         // NHS Teal
-  individual: '#768692',    // NHS Grey
-}
+import { NODES, EDGES, SECTOR_COLORS } from '../data/nodes.js'
 
 const EDGE_COLORS = {
-  policy: '#005EB8',
-  regulation: '#DA291C',    // NHS Red
-  oversight: '#41B6E6',
-  employment: '#768692',
-  governance: '#768692',
-  support: '#00A499',
-  advocacy: '#AE2573',      // NHS Purple
+  policy:      '#005EB8',
+  regulation:  '#C62828',
+  oversight:   '#41B6E6',
+  employment:  '#768692',
+  governance:  '#768692',
+  support:     '#00A499',
+  advocacy:    '#AE2573',
   stakeholder: '#005EB8',
-  evidence: '#E8EDEE',
+  evidence:    '#2E7D32',
 }
 
 const SUBTYPE_SHAPES = {
-  'policy-owner': 'star',
-  'regulator': 'diamond',
+  'policy-owner':    'star',
+  'government':      'star',
+  'regulator':       'diamond',
   'professional-body': 'hexagon',
   'research-advocacy': 'pentagon',
-  'icb': 'roundrectangle',
-  'acute': 'rectangle',
-  'mental-health': 'rectangle',
-  'community': 'rectangle',
-  'ambulance': 'rectangle',
-  'prison': 'rectangle',
-  'primary-care': 'rectangle',
-  'preceptee': 'ellipse',
-  'preceptor': 'ellipse',
-  'trust-lead': 'ellipse',
-  'exec': 'ellipse',
+  'federation':      'pentagon',
+  'icb':             'roundrectangle',
+  'acute':           'rectangle',
+  'mental-health':   'rectangle',
+  'community':       'rectangle',
+  'ambulance':       'rectangle',
+  'prison':          'rectangle',
+  'primary-care':    'rectangle',
+  'university':      'triangle',
+  'union':           'hexagon',
+  'ombudsman':       'diamond',
+  'investigator':    'diamond',
+  'guardian':        'ellipse',
+  'charity':         'ellipse',
+  'think-tank':      'ellipse',
+  'platform':        'ellipse',
+  'training':        'ellipse',
+  'preceptee':       'ellipse',
+  'preceptor':       'ellipse',
+  'trust-lead':      'ellipse',
+  'exec':            'ellipse',
 }
 
-export default function Graph({ onNodeSelect, selectedNodeId, darkMode }) {
+export default function Graph({ onNodeSelect, selectedNodeId, darkMode, activeSector }) {
   const containerRef = useRef(null)
   const cyRef = useRef(null)
 
   useEffect(() => {
     if (!containerRef.current) return
 
-    const bg = darkMode ? '#0a1628' : '#f0f4f8'
     const labelColor = darkMode ? '#e8edee' : '#1a2332'
 
     const elements = [
@@ -56,9 +59,10 @@ export default function Graph({ onNodeSelect, selectedNodeId, darkMode }) {
           label: n.label,
           type: n.type,
           subtype: n.subtype,
+          sector: n.sector,
           tier: n.tier,
         },
-        classes: `tier-${n.tier} type-${n.type}`,
+        classes: `tier-${n.tier} sector-${n.sector}`,
       })),
       ...EDGES.map((e, i) => ({
         data: {
@@ -79,69 +83,74 @@ export default function Graph({ onNodeSelect, selectedNodeId, darkMode }) {
         {
           selector: 'node',
           style: {
-            'background-color': (ele) => NODE_COLORS[ele.data('type')] || '#768692',
-            'shape': (ele) => SUBTYPE_SHAPES[ele.data('subtype')] || 'ellipse',
+            'background-color': ele => SECTOR_COLORS[ele.data('sector')] || '#768692',
+            'shape': ele => SUBTYPE_SHAPES[ele.data('subtype')] || 'ellipse',
             'label': 'data(label)',
             'color': labelColor,
-            'font-size': (ele) => ele.data('tier') === 0 ? 13 : ele.data('tier') === 1 ? 11 : 10,
+            'font-size': ele => {
+              const t = ele.data('tier')
+              return t === 0 ? 13 : t === 1 ? 11 : 10
+            },
             'font-family': '"Frutiger", "Arial", sans-serif',
             'text-wrap': 'wrap',
-            'text-max-width': 100,
+            'text-max-width': 90,
             'text-valign': 'bottom',
             'text-margin-y': 4,
-            'width': (ele) => ele.data('tier') === 0 ? 52 : ele.data('tier') === 1 ? 40 : 32,
-            'height': (ele) => ele.data('tier') === 0 ? 52 : ele.data('tier') === 1 ? 40 : 32,
+            'width': ele => {
+              const t = ele.data('tier')
+              return t === 0 ? 52 : t === 1 ? 38 : t === 2 ? 28 : 22
+            },
+            'height': ele => {
+              const t = ele.data('tier')
+              return t === 0 ? 52 : t === 1 ? 38 : t === 2 ? 28 : 22
+            },
             'border-width': 2,
-            'border-color': (ele) => NODE_COLORS[ele.data('type')] || '#768692',
-            'border-opacity': 0.6,
+            'border-color': ele => SECTOR_COLORS[ele.data('sector')] || '#768692',
+            'border-opacity': 0.5,
           },
         },
         {
-          selector: 'node:selected, node.highlighted',
+          selector: 'node.highlighted',
           style: {
-            'border-width': 3,
-            'border-color': '#FFB81C',  // NHS Warm Yellow
+            'border-width': 4,
+            'border-color': '#FFB81C',
             'border-opacity': 1,
             'overlay-opacity': 0,
+            'z-index': 999,
           },
         },
         {
           selector: 'edge',
           style: {
-            'width': 1.5,
-            'line-color': (ele) => EDGE_COLORS[ele.data('edgeType')] || '#768692',
-            'line-opacity': darkMode ? 0.4 : 0.3,
+            'width': 1.2,
+            'line-color': ele => EDGE_COLORS[ele.data('edgeType')] || '#768692',
+            'line-opacity': darkMode ? 0.35 : 0.25,
             'target-arrow-shape': 'triangle',
-            'target-arrow-color': (ele) => EDGE_COLORS[ele.data('edgeType')] || '#768692',
-            'target-arrow-opacity': darkMode ? 0.5 : 0.4,
+            'target-arrow-color': ele => EDGE_COLORS[ele.data('edgeType')] || '#768692',
+            'target-arrow-opacity': darkMode ? 0.45 : 0.35,
             'curve-style': 'bezier',
-            'arrow-scale': 0.8,
+            'arrow-scale': 0.7,
           },
         },
         {
-          selector: 'edge:selected',
-          style: {
-            'line-opacity': 0.9,
-            'width': 2.5,
-          },
+          selector: 'node.dimmed, edge.dimmed',
+          style: { 'opacity': 0.08 },
         },
         {
-          selector: '.dimmed',
-          style: {
-            'opacity': 0.15,
-          },
+          selector: 'node.sector-hidden, edge.sector-hidden',
+          style: { 'display': 'none' },
         },
       ],
       layout: {
         name: 'concentric',
-        concentric: (ele) => {
+        concentric: ele => {
           if (ele.isEdge()) return 0
-          const tier = ele.data('tier')
-          return tier === 0 ? 4 : tier === 1 ? 3 : tier === 2 ? 2 : 1
+          const t = ele.data('tier')
+          return t === 0 ? 5 : t === 1 ? 4 : t === 2 ? 3 : t === 3 ? 2 : 1
         },
         levelWidth: () => 1,
-        minNodeSpacing: 40,
-        spacingFactor: 1.4,
+        minNodeSpacing: 22,
+        spacingFactor: 1.1,
         padding: 60,
         avoidOverlap: true,
       },
@@ -151,41 +160,54 @@ export default function Graph({ onNodeSelect, selectedNodeId, darkMode }) {
       autounselectify: false,
     })
 
-    cy.on('tap', 'node', (evt) => {
-      const id = evt.target.id()
-      onNodeSelect(id)
+    cy.on('tap', 'node', evt => {
+      onNodeSelect(evt.target.id())
     })
 
-    cy.on('tap', (evt) => {
+    cy.on('tap', evt => {
       if (evt.target === cy) {
         onNodeSelect(null)
-        cy.elements().removeClass('dimmed highlighted')
+        cy.elements().removeClass('dimmed highlighted sector-hidden')
       }
     })
 
     cyRef.current = cy
-
-    return () => {
-      cy.destroy()
-      cyRef.current = null
-    }
+    return () => { cy.destroy(); cyRef.current = null }
   }, [darkMode])
+
+  // Sector filter
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy) return
+    cy.elements().removeClass('sector-hidden')
+    if (activeSector) {
+      cy.nodes().forEach(n => {
+        if (n.data('sector') !== activeSector) {
+          n.addClass('sector-hidden')
+        }
+      })
+      cy.edges().forEach(e => {
+        const src = cy.getElementById(e.data('source'))
+        const tgt = cy.getElementById(e.data('target'))
+        if (src.hasClass('sector-hidden') || tgt.hasClass('sector-hidden')) {
+          e.addClass('sector-hidden')
+        }
+      })
+    }
+  }, [activeSector])
 
   // Highlight selected node
   useEffect(() => {
     const cy = cyRef.current
     if (!cy) return
-
     cy.elements().removeClass('dimmed highlighted')
-
     if (selectedNodeId) {
-      const selected = cy.getElementById(selectedNodeId)
-      if (selected.length) {
-        const connected = selected.connectedEdges().connectedNodes()
+      const sel = cy.getElementById(selectedNodeId)
+      if (sel.length) {
         cy.elements().addClass('dimmed')
-        selected.removeClass('dimmed').addClass('highlighted')
-        connected.removeClass('dimmed')
-        selected.connectedEdges().removeClass('dimmed')
+        sel.removeClass('dimmed').addClass('highlighted')
+        sel.connectedEdges().removeClass('dimmed')
+        sel.connectedEdges().connectedNodes().removeClass('dimmed')
       }
     }
   }, [selectedNodeId])
@@ -193,32 +215,6 @@ export default function Graph({ onNodeSelect, selectedNodeId, darkMode }) {
   return (
     <div className="graph-container">
       <div ref={containerRef} className="cy-container" />
-      <div className="graph-legend">
-        <div className="legend-title">Entity Type</div>
-        {Object.entries(NODE_COLORS).map(([type, color]) => (
-          <div key={type} className="legend-item">
-            <span className="legend-dot" style={{ background: color }} />
-            <span className="legend-label">{type.charAt(0).toUpperCase() + type.slice(1)}</span>
-          </div>
-        ))}
-        <div className="legend-title legend-title--edge">Relationship</div>
-        <div className="legend-item">
-          <span className="legend-line" style={{ background: EDGE_COLORS.regulation }} />
-          <span className="legend-label">Regulation</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-line" style={{ background: EDGE_COLORS.oversight }} />
-          <span className="legend-label">Oversight</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-line" style={{ background: EDGE_COLORS.support }} />
-          <span className="legend-label">Support</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-line" style={{ background: EDGE_COLORS.advocacy }} />
-          <span className="legend-label">Advocacy</span>
-        </div>
-      </div>
       <div className="graph-hint">
         Click any node for details · Scroll to zoom · Drag to pan
       </div>
