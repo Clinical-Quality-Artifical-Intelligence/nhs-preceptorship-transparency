@@ -24,8 +24,7 @@ export default function SearchPanel({ onClose, onSelect }) {
   }, [query, filterType])
 
   const handleSelect = (id) => {
-    onSelect(id)
-    onClose()
+    onSelect(id)  // App.jsx switches panel to 'detail' — don't also call onClose
   }
 
   return (

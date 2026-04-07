@@ -1,22 +1,28 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import Header from './components/Header.jsx'
 import Graph from './components/Graph.jsx'
 import DetailPanel from './components/DetailPanel.jsx'
 import FrameworkPanel from './components/FrameworkPanel.jsx'
 import GapsPanel from './components/GapsPanel.jsx'
 import SearchPanel from './components/SearchPanel.jsx'
+import FloatingToolbar from './components/FloatingToolbar.jsx'
+import LegendBar from './components/LegendBar.jsx'
 import { NODES } from './data/nodes.js'
 
 export default function App() {
   const [selectedNode, setSelectedNode] = useState(null)
   const [activePanel, setActivePanel] = useState(null)
-  const [darkMode, setDarkMode] = useState(true)
+  const [darkMode, setDarkMode] = useState(false)      // light by default
   const [activeSector, setActiveSector] = useState(null)
+  const [viewMode, setViewMode] = useState('full')     // 'full' | 'focus'
+  const [showLegend, setShowLegend] = useState(true)
+  const graphContainerRef = useRef(null)
 
   const handleNodeSelect = (nodeId) => {
     const node = nodeId ? NODES.find(n => n.id === nodeId) : null
     setSelectedNode(node || null)
     if (node) setActivePanel('detail')
+    else if (activePanel === 'detail') setActivePanel(null)
   }
 
   const handlePanelToggle = (panel) => {
@@ -29,27 +35,23 @@ export default function App() {
     setSelectedNode(null)
   }
 
+  const handleHeaderBtnClick = (e) => {
+    const panel = e?.currentTarget?.dataset?.panel
+    if (panel) handlePanelToggle(panel)
+  }
+
   return (
     <div className={`app ${darkMode ? 'dark' : 'light'}`}>
       <Header
-        darkMode={darkMode}
-        onToggleDark={() => setDarkMode(d => !d)}
-        onFramework={() => handlePanelToggle('framework')}
-        onGaps={() => handlePanelToggle('gaps')}
         onSearch={() => handlePanelToggle('search')}
         activePanel={activePanel}
         activeSector={activeSector}
         onSectorFilter={setActiveSector}
+        onPanelToggle={handlePanelToggle}
       />
 
-      <main className="main">
-        <Graph
-          onNodeSelect={handleNodeSelect}
-          selectedNodeId={selectedNode?.id}
-          darkMode={darkMode}
-          activeSector={activeSector}
-        />
-
+      <div className="canvas-area">
+        {/* Left detail panel */}
         {activePanel === 'detail' && selectedNode && (
           <DetailPanel node={selectedNode} onClose={handleClose} darkMode={darkMode} />
         )}
@@ -62,14 +64,38 @@ export default function App() {
         {activePanel === 'search' && (
           <SearchPanel onClose={handleClose} onSelect={handleNodeSelect} darkMode={darkMode} />
         )}
-      </main>
+
+        {/* Graph fills remaining space */}
+        <div className="graph-region" ref={graphContainerRef}>
+          <Graph
+            onNodeSelect={handleNodeSelect}
+            selectedNodeId={selectedNode?.id}
+            darkMode={darkMode}
+            activeSector={activeSector}
+            viewMode={viewMode}
+          />
+
+          <FloatingToolbar
+            viewMode={viewMode}
+            onViewMode={setViewMode}
+            showLegend={showLegend}
+            onToggleLegend={() => setShowLegend(l => !l)}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode(d => !d)}
+            graphRef={graphContainerRef}
+          />
+        </div>
+      </div>
+
+      {/* Bottom legend + footer */}
+      <LegendBar visible={showLegend} darkMode={darkMode} />
 
       <footer className="footer">
-        <span>Data sourced from NHS England, NMC, CQC, HCPC and official public sources — Open Government Licence v3.0</span>
+        <span>Data: NHS England · NMC · CQC · HCPC — Open Government Licence v3.0</span>
         <span className="footer-sep">·</span>
-        <a href="https://www.england.nhs.uk/long-read/national-preceptorship-framework-for-nursing/" target="_blank" rel="noopener noreferrer">Framework Source</a>
+        <a href="https://www.england.nhs.uk/long-read/national-preceptorship-framework-for-nursing/" target="_blank" rel="noopener noreferrer">Framework</a>
         <span className="footer-sep">·</span>
-        <span>Built for transparency · Not affiliated with NHS England · Not official NHS guidance</span>
+        <span>Not affiliated with NHS England · Not official NHS guidance</span>
       </footer>
     </div>
   )

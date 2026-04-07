@@ -1,78 +1,62 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import cytoscape from 'cytoscape'
 import { NODES, EDGES, SECTOR_COLORS } from '../data/nodes.js'
 
 const EDGE_COLORS = {
-  policy:      '#005EB8',
-  regulation:  '#C62828',
-  oversight:   '#41B6E6',
-  employment:  '#768692',
-  governance:  '#768692',
-  support:     '#00A499',
-  advocacy:    '#AE2573',
-  stakeholder: '#005EB8',
-  evidence:    '#2E7D32',
+  policy:      '#3a6bc4',
+  regulation:  '#c0392b',
+  oversight:   '#2980b9',
+  employment:  '#95a5a6',
+  governance:  '#95a5a6',
+  support:     '#27ae60',
+  advocacy:    '#8e44ad',
+  stakeholder: '#3a6bc4',
+  evidence:    '#16a085',
 }
 
 const SUBTYPE_SHAPES = {
-  'policy-owner':    'star',
-  'government':      'star',
-  'regulator':       'diamond',
+  'policy-owner':      'star',
+  'government':        'star',
+  'regulator':         'diamond',
   'professional-body': 'hexagon',
   'research-advocacy': 'pentagon',
-  'federation':      'pentagon',
-  'icb':             'roundrectangle',
-  'acute':           'rectangle',
-  'mental-health':   'rectangle',
-  'community':       'rectangle',
-  'ambulance':       'rectangle',
-  'prison':          'rectangle',
-  'primary-care':    'rectangle',
-  'university':      'triangle',
-  'union':           'hexagon',
-  'ombudsman':       'diamond',
-  'investigator':    'diamond',
-  'guardian':        'ellipse',
-  'charity':         'ellipse',
-  'think-tank':      'ellipse',
-  'platform':        'ellipse',
-  'training':        'ellipse',
-  'preceptee':       'ellipse',
-  'preceptor':       'ellipse',
-  'trust-lead':      'ellipse',
-  'exec':            'ellipse',
+  'federation':        'pentagon',
+  'ombudsman':         'diamond',
+  'investigator':      'diamond',
+  'university':        'triangle',
+  'union':             'hexagon',
+  'icb':               'roundrectangle',
+  'acute':             'rectangle',
+  'mental-health':     'rectangle',
+  'community':         'rectangle',
+  'ambulance':         'rectangle',
+  'prison':            'rectangle',
 }
 
-export default function Graph({ onNodeSelect, selectedNodeId, darkMode, activeSector }) {
-  const containerRef = useRef(null)
-  const cyRef = useRef(null)
+function nodeSize(tier) {
+  return tier === 0 ? 18 : tier === 1 ? 13 : tier === 2 ? 10 : 8
+}
 
+export default function Graph({
+  onNodeSelect, selectedNodeId, darkMode,
+  activeSector, viewMode, onViewModeChange,
+  onCyReady,
+}) {
+  const containerRef = useRef(null)
+  const ringCanvasRef = useRef(null)
+  const cyRef = useRef(null)
+  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, label: '' })
+
+  // Build and mount cytoscape
   useEffect(() => {
     if (!containerRef.current) return
 
-    const labelColor = darkMode ? '#e8edee' : '#1a2332'
-
     const elements = [
       ...NODES.map(n => ({
-        data: {
-          id: n.id,
-          label: n.label,
-          type: n.type,
-          subtype: n.subtype,
-          sector: n.sector,
-          tier: n.tier,
-        },
-        classes: `tier-${n.tier} sector-${n.sector}`,
+        data: { id: n.id, label: n.label, type: n.type, subtype: n.subtype, sector: n.sector, tier: n.tier },
       })),
       ...EDGES.map((e, i) => ({
-        data: {
-          id: `e-${i}`,
-          source: e.source,
-          target: e.target,
-          label: e.label,
-          edgeType: e.type,
-        },
-        classes: `edge-${e.type}`,
+        data: { id: `e${i}`, source: e.source, target: e.target, edgeType: e.type },
       })),
     ]
 
@@ -85,60 +69,104 @@ export default function Graph({ onNodeSelect, selectedNodeId, darkMode, activeSe
           style: {
             'background-color': ele => SECTOR_COLORS[ele.data('sector')] || '#768692',
             'shape': ele => SUBTYPE_SHAPES[ele.data('subtype')] || 'ellipse',
-            'label': 'data(label)',
-            'color': labelColor,
-            'font-size': ele => {
-              const t = ele.data('tier')
-              return t === 0 ? 13 : t === 1 ? 11 : 10
-            },
-            'font-family': '"Frutiger", "Arial", sans-serif',
-            'text-wrap': 'wrap',
-            'text-max-width': 90,
-            'text-valign': 'bottom',
-            'text-margin-y': 4,
-            'width': ele => {
-              const t = ele.data('tier')
-              return t === 0 ? 52 : t === 1 ? 38 : t === 2 ? 28 : 22
-            },
-            'height': ele => {
-              const t = ele.data('tier')
-              return t === 0 ? 52 : t === 1 ? 38 : t === 2 ? 28 : 22
-            },
-            'border-width': 2,
+            'width':  ele => nodeSize(ele.data('tier')),
+            'height': ele => nodeSize(ele.data('tier')),
+            'label': '',   // no labels by default
+            'border-width': 1.5,
             'border-color': ele => SECTOR_COLORS[ele.data('sector')] || '#768692',
-            'border-opacity': 0.5,
+            'border-opacity': 0.4,
+          },
+        },
+        {
+          selector: 'node.labelled',
+          style: {
+            'label': 'data(label)',
+            'color': darkMode ? '#e8edee' : '#1e3a5f',
+            'font-size': 9,
+            'font-family': '"Inter", "Arial", sans-serif',
+            'font-weight': 500,
+            'text-wrap': 'wrap',
+            'text-max-width': 80,
+            'text-valign': 'bottom',
+            'text-margin-y': 3,
+            'text-background-color': darkMode ? '#0f1f3d' : '#f8fafc',
+            'text-background-opacity': 0.85,
+            'text-background-padding': '2px',
+            'text-background-shape': 'roundrectangle',
           },
         },
         {
           selector: 'node.highlighted',
           style: {
-            'border-width': 4,
-            'border-color': '#FFB81C',
+            'border-width': 3,
+            'border-color': '#f39c12',
             'border-opacity': 1,
-            'overlay-opacity': 0,
+            'background-color': ele => SECTOR_COLORS[ele.data('sector')] || '#768692',
+            'width':  ele => nodeSize(ele.data('tier')) * 1.5,
+            'height': ele => nodeSize(ele.data('tier')) * 1.5,
+            'label': 'data(label)',
+            'color': darkMode ? '#fff' : '#1e3a5f',
+            'font-size': 11,
+            'font-weight': 700,
+            'font-family': '"Inter", "Arial", sans-serif',
+            'text-wrap': 'wrap',
+            'text-max-width': 100,
+            'text-valign': 'bottom',
+            'text-margin-y': 4,
+            'text-background-color': darkMode ? '#0f1f3d' : '#ffffff',
+            'text-background-opacity': 0.92,
+            'text-background-padding': '3px',
+            'text-background-shape': 'roundrectangle',
             'z-index': 999,
+          },
+        },
+        {
+          selector: 'node.neighbour',
+          style: {
+            'label': 'data(label)',
+            'color': darkMode ? '#c8d8e8' : '#2c4a6e',
+            'font-size': 9,
+            'font-family': '"Inter", "Arial", sans-serif',
+            'font-weight': 500,
+            'text-wrap': 'wrap',
+            'text-max-width': 80,
+            'text-valign': 'bottom',
+            'text-margin-y': 3,
+            'text-background-color': darkMode ? '#0f1f3d' : '#f8fafc',
+            'text-background-opacity': 0.8,
+            'text-background-padding': '2px',
+            'text-background-shape': 'roundrectangle',
+            'border-width': 2,
+            'border-color': ele => SECTOR_COLORS[ele.data('sector')] || '#768692',
+            'border-opacity': 0.8,
+            'z-index': 10,
           },
         },
         {
           selector: 'edge',
           style: {
-            'width': 1.2,
-            'line-color': ele => EDGE_COLORS[ele.data('edgeType')] || '#768692',
-            'line-opacity': darkMode ? 0.35 : 0.25,
+            'width': 1,
+            'line-color': ele => EDGE_COLORS[ele.data('edgeType')] || '#aaa',
+            'line-opacity': darkMode ? 0.3 : 0.2,
             'target-arrow-shape': 'triangle',
-            'target-arrow-color': ele => EDGE_COLORS[ele.data('edgeType')] || '#768692',
-            'target-arrow-opacity': darkMode ? 0.45 : 0.35,
+            'target-arrow-color': ele => EDGE_COLORS[ele.data('edgeType')] || '#aaa',
+            'target-arrow-opacity': darkMode ? 0.4 : 0.25,
             'curve-style': 'bezier',
-            'arrow-scale': 0.7,
+            'arrow-scale': 0.6,
           },
         },
         {
-          selector: 'node.dimmed, edge.dimmed',
-          style: { 'opacity': 0.08 },
+          selector: 'edge.active',
+          style: {
+            'line-opacity': 0.75,
+            'width': 1.8,
+            'target-arrow-opacity': 0.9,
+            'z-index': 5,
+          },
         },
         {
-          selector: 'node.sector-hidden, edge.sector-hidden',
-          style: { 'display': 'none' },
+          selector: '.dimmed',
+          style: { 'opacity': 0.06 },
         },
       ],
       layout: {
@@ -146,19 +174,36 @@ export default function Graph({ onNodeSelect, selectedNodeId, darkMode, activeSe
         concentric: ele => {
           if (ele.isEdge()) return 0
           const t = ele.data('tier')
-          return t === 0 ? 5 : t === 1 ? 4 : t === 2 ? 3 : t === 3 ? 2 : 1
+          return t === 0 ? 5 : t === 1 ? 4 : t === 2 ? 3 : 2
         },
         levelWidth: () => 1,
-        minNodeSpacing: 22,
-        spacingFactor: 1.1,
-        padding: 60,
+        minNodeSpacing: 18,
+        spacingFactor: 1.15,
+        padding: 50,
         avoidOverlap: true,
+        animate: false,
       },
       userZoomingEnabled: true,
       userPanningEnabled: true,
       boxSelectionEnabled: false,
-      autounselectify: false,
+      minZoom: 0.2,
+      maxZoom: 6,
     })
+
+    // Show labels when zoomed in enough
+    cy.on('zoom', () => {
+      const z = cy.zoom()
+      if (z > 1.8) {
+        cy.nodes().not('.highlighted').not('.neighbour').addClass('labelled')
+      } else {
+        cy.nodes().not('.highlighted').not('.neighbour').removeClass('labelled')
+      }
+      drawRings(cy)
+    })
+
+    cy.on('pan', () => drawRings(cy))
+
+    cy.on('layoutstop', () => drawRings(cy))
 
     cy.on('tap', 'node', evt => {
       onNodeSelect(evt.target.id())
@@ -167,57 +212,186 @@ export default function Graph({ onNodeSelect, selectedNodeId, darkMode, activeSe
     cy.on('tap', evt => {
       if (evt.target === cy) {
         onNodeSelect(null)
-        cy.elements().removeClass('dimmed highlighted sector-hidden')
       }
     })
 
+    cy.on('mouseover', 'node', evt => {
+      const node = evt.target
+      const rp = node.renderedPosition()
+      const rect = containerRef.current.getBoundingClientRect()
+      setTooltip({
+        visible: true,
+        x: rp.x + rect.left,
+        y: rp.y + rect.top - nodeSize(node.data('tier')) - 10,
+        label: node.data('label'),
+        sector: node.data('sector'),
+      })
+    })
+
+    cy.on('mouseout', 'node', () => setTooltip(t => ({ ...t, visible: false })))
+
     cyRef.current = cy
+    if (onCyReady) onCyReady(cy)
+
     return () => { cy.destroy(); cyRef.current = null }
+  }, [darkMode])
+
+  // Ring guide line drawing
+  const drawRings = useCallback((cy) => {
+    const canvas = ringCanvasRef.current
+    if (!canvas || !cy || cy.nodes().length === 0) return
+    const ctx = canvas.getContext('2d')
+    const w = canvas.width = canvas.offsetWidth
+    const h = canvas.height = canvas.offsetHeight
+    ctx.clearRect(0, 0, w, h)
+
+    // Group rendered positions by tier
+    const tierPositions = {}
+    cy.nodes(':visible').forEach(n => {
+      const t = n.data('tier')
+      const rp = n.renderedPosition()
+      if (!tierPositions[t]) tierPositions[t] = []
+      tierPositions[t].push(rp)
+    })
+
+    if (Object.keys(tierPositions).length === 0) return
+
+    // Compute overall centroid in rendered space
+    const all = Object.values(tierPositions).flat()
+    const cx = all.reduce((s, p) => s + p.x, 0) / all.length
+    const cy2 = all.reduce((s, p) => s + p.y, 0) / all.length
+
+    // Draw a ring for each tier
+    ctx.lineDash = []
+    Object.entries(tierPositions).forEach(([tier, positions]) => {
+      const r = positions.reduce((s, p) =>
+        s + Math.sqrt(Math.pow(p.x - cx, 2) + Math.pow(p.y - cy2, 2)), 0) / positions.length
+      if (r < 8) return
+      ctx.beginPath()
+      ctx.arc(cx, cy2, r, 0, Math.PI * 2)
+      ctx.strokeStyle = darkMode
+        ? 'rgba(100,150,220,0.10)'
+        : 'rgba(0,60,140,0.07)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+    })
   }, [darkMode])
 
   // Sector filter
   useEffect(() => {
     const cy = cyRef.current
     if (!cy) return
-    cy.elements().removeClass('sector-hidden')
+    cy.elements().removeClass('dimmed')
     if (activeSector) {
       cy.nodes().forEach(n => {
-        if (n.data('sector') !== activeSector) {
-          n.addClass('sector-hidden')
-        }
+        if (n.data('sector') !== activeSector) n.addClass('dimmed')
       })
       cy.edges().forEach(e => {
-        const src = cy.getElementById(e.data('source'))
-        const tgt = cy.getElementById(e.data('target'))
-        if (src.hasClass('sector-hidden') || tgt.hasClass('sector-hidden')) {
-          e.addClass('sector-hidden')
-        }
+        const s = cy.getElementById(e.data('source'))
+        const t = cy.getElementById(e.data('target'))
+        if (s.hasClass('dimmed') || t.hasClass('dimmed')) e.addClass('dimmed')
       })
     }
-  }, [activeSector])
+    drawRings(cy)
+  }, [activeSector, drawRings])
 
-  // Highlight selected node
+  // Selection highlight + focus view
   useEffect(() => {
     const cy = cyRef.current
     if (!cy) return
-    cy.elements().removeClass('dimmed highlighted')
-    if (selectedNodeId) {
-      const sel = cy.getElementById(selectedNodeId)
-      if (sel.length) {
-        cy.elements().addClass('dimmed')
-        sel.removeClass('dimmed').addClass('highlighted')
-        sel.connectedEdges().removeClass('dimmed')
-        sel.connectedEdges().connectedNodes().removeClass('dimmed')
-      }
+
+    cy.elements().removeClass('dimmed highlighted neighbour active')
+    cy.nodes().removeClass('labelled')
+
+    if (!selectedNodeId) {
+      drawRings(cy)
+      return
     }
-  }, [selectedNodeId])
+
+    const sel = cy.getElementById(selectedNodeId)
+    if (!sel.length) return
+
+    if (viewMode === 'focus') {
+      // Focus view: show only selected + neighbours
+      const neighbourhood = sel.closedNeighborhood()
+      cy.elements().addClass('dimmed')
+      neighbourhood.removeClass('dimmed')
+      sel.connectedEdges().removeClass('dimmed').addClass('active')
+      sel.addClass('highlighted')
+      sel.connectedNodes().addClass('neighbour')
+
+      // Rearrange to focus layout
+      neighbourhood.layout({
+        name: 'concentric',
+        concentric: ele => ele.id() === selectedNodeId ? 2 : 1,
+        levelWidth: () => 1,
+        padding: 60,
+        animate: true,
+        animationDuration: 400,
+        fit: true,
+      }).run()
+    } else {
+      // Full view: highlight selected and dim others
+      cy.elements().addClass('dimmed')
+      sel.removeClass('dimmed').addClass('highlighted')
+      sel.connectedEdges().removeClass('dimmed').addClass('active')
+      sel.connectedNodes().removeClass('dimmed').addClass('neighbour')
+    }
+
+    drawRings(cy)
+  }, [selectedNodeId, viewMode, drawRings])
+
+  // Recentre function exposed via onCyReady
+  const handleRecentre = () => {
+    const cy = cyRef.current
+    if (!cy) return
+    cy.animate({ fit: { eles: cy.elements(), padding: 50 }, duration: 400 })
+  }
+
+  const handleRandom = () => {
+    const cy = cyRef.current
+    if (!cy) return
+    const nodes = cy.nodes()
+    const rand = nodes[Math.floor(Math.random() * nodes.length)]
+    onNodeSelect(rand.id())
+    cy.animate({ center: { eles: rand }, zoom: 2, duration: 400 })
+  }
+
+  // Expose controls via ref pattern — attach to container dataset
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current._recentre = handleRecentre
+      containerRef.current._random = handleRandom
+    }
+  })
 
   return (
-    <div className="graph-container">
+    <div className="graph-wrap">
+      {/* Ring guide lines canvas */}
+      <canvas
+        ref={ringCanvasRef}
+        className="ring-canvas"
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* Cytoscape container */}
       <div ref={containerRef} className="cy-container" />
-      <div className="graph-hint">
-        Click any node for details · Scroll to zoom · Drag to pan
-      </div>
+
+      {/* Hover tooltip */}
+      {tooltip.visible && (
+        <div
+          className="node-tooltip"
+          style={{ left: tooltip.x, top: tooltip.y }}
+        >
+          <span
+            className="tooltip-dot"
+            style={{ background: SECTOR_COLORS[tooltip.sector] }}
+          />
+          {tooltip.label}
+        </div>
+      )}
+
+      <p className="graph-hint">Hover to explore · Click to select · Scroll to zoom</p>
     </div>
   )
 }

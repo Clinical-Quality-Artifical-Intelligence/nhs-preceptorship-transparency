@@ -1,89 +1,103 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { SECTOR_COLORS, SECTOR_LABELS } from '../data/nodes.js'
 
-// Simple network graph SVG icon — no NHS branding
 function NetworkIcon() {
   return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <circle cx="14" cy="14" r="3.5" fill="white" />
-      <circle cx="5"  cy="5"  r="2.5" fill="rgba(255,255,255,0.75)" />
-      <circle cx="23" cy="5"  r="2.5" fill="rgba(255,255,255,0.75)" />
-      <circle cx="5"  cy="23" r="2.5" fill="rgba(255,255,255,0.75)" />
-      <circle cx="23" cy="23" r="2.5" fill="rgba(255,255,255,0.75)" />
-      <circle cx="14" cy="3"  r="2"   fill="rgba(255,255,255,0.55)" />
-      <line x1="14" y1="14" x2="5"  y2="5"  stroke="white" strokeWidth="1.4" strokeOpacity="0.7" />
-      <line x1="14" y1="14" x2="23" y2="5"  stroke="white" strokeWidth="1.4" strokeOpacity="0.7" />
-      <line x1="14" y1="14" x2="5"  y2="23" stroke="white" strokeWidth="1.4" strokeOpacity="0.7" />
-      <line x1="14" y1="14" x2="23" y2="23" stroke="white" strokeWidth="1.4" strokeOpacity="0.7" />
-      <line x1="14" y1="14" x2="14" y2="3"  stroke="white" strokeWidth="1.4" strokeOpacity="0.7" />
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+      <circle cx="13" cy="13" r="3" fill="white" />
+      <circle cx="4"  cy="5"  r="2" fill="rgba(255,255,255,0.7)" />
+      <circle cx="22" cy="5"  r="2" fill="rgba(255,255,255,0.7)" />
+      <circle cx="4"  cy="21" r="2" fill="rgba(255,255,255,0.7)" />
+      <circle cx="22" cy="21" r="2" fill="rgba(255,255,255,0.7)" />
+      <circle cx="13" cy="2"  r="1.5" fill="rgba(255,255,255,0.5)" />
+      <line x1="13" y1="13" x2="4"  y2="5"  stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
+      <line x1="13" y1="13" x2="22" y2="5"  stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
+      <line x1="13" y1="13" x2="4"  y2="21" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
+      <line x1="13" y1="13" x2="22" y2="21" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
+      <line x1="13" y1="13" x2="13" y2="2"  stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
     </svg>
   )
 }
 
 export default function Header({
-  darkMode, onToggleDark,
-  onFramework, onGaps, onSearch,
-  activePanel,
+  onSearch, activePanel,
   activeSector, onSectorFilter,
+  onPanelToggle,
 }) {
+  const [showCategories, setShowCategories] = useState(false)
+
   return (
     <header className="header">
-      <div className="header-top">
-        <div className="header-left">
-          <div className="header-logo">
-            <NetworkIcon />
-            <div className="logo-text">
-              <span className="logo-title">Preceptorship Transparency</span>
-              <span className="logo-sub">NHS England Accountability Map</span>
+      <div className="header-inner">
+        <div className="header-brand">
+          <NetworkIcon />
+          <div>
+            <div className="brand-title">Preceptorship Transparency</div>
+            <div className="brand-sub">
+              Explore accountability for newly registered nurses &amp; AHPs in England · by{' '}
+              <a href="https://github.com/Clinical-Quality-Artifical-Intelligence" target="_blank" rel="noopener noreferrer">
+                CQAI
+              </a>
             </div>
           </div>
         </div>
 
         <nav className="header-nav">
-          <button className={`nav-btn ${activePanel === 'framework' ? 'active' : ''}`} onClick={onFramework}>
-            📋 Framework
+          <button
+            className="hdr-btn"
+            onClick={() => setShowCategories(c => !c)}
+          >
+            <span>⬡</span> Categories
           </button>
-          <button className={`nav-btn nav-btn--gaps ${activePanel === 'gaps' ? 'active' : ''}`} onClick={onGaps}>
-            ⚠ Gaps
+          <button
+            className={`hdr-btn ${activePanel === 'framework' ? 'hdr-btn--active' : ''}`}
+            onClick={() => onPanelToggle('framework')}
+          >
+            <span>📋</span> Framework
           </button>
-          <button className={`nav-btn ${activePanel === 'search' ? 'active' : ''}`} onClick={onSearch}>
-            🔍 Search
+          <button
+            className={`hdr-btn ${activePanel === 'gaps' ? 'hdr-btn--active' : ''}`}
+            onClick={() => onPanelToggle('gaps')}
+          >
+            <span>⚠</span> Gaps
           </button>
-          <button className="nav-btn nav-btn--icon" onClick={onToggleDark} title="Toggle dark/light mode">
-            {darkMode ? '☀' : '☾'}
+          <button
+            className={`hdr-btn ${activePanel === 'search' ? 'hdr-btn--active' : ''}`}
+            onClick={onSearch}
+          >
+            <span>🔍</span> Search
           </button>
         </nav>
       </div>
 
-      <div className="sector-bar">
-        <span className="sector-bar-label">Filter:</span>
-        <div className="sector-pills">
-          <button
-            className={`sector-pill ${!activeSector ? 'active' : ''}`}
-            style={!activeSector ? { background: '#444', borderColor: '#444' } : {}}
-            onClick={() => onSectorFilter(null)}
-          >
-            All
-          </button>
-          {Object.entries(SECTOR_LABELS).map(([key, label]) => (
+      {/* Categories dropdown */}
+      {showCategories && (
+        <div className="categories-dropdown">
+          <div className="cat-title">Filter by sector</div>
+          <div className="cat-grid">
             <button
-              key={key}
-              className={`sector-pill ${activeSector === key ? 'active' : ''}`}
-              style={activeSector === key
-                ? { background: SECTOR_COLORS[key], borderColor: SECTOR_COLORS[key], color: 'white' }
-                : { borderColor: SECTOR_COLORS[key], color: SECTOR_COLORS[key] }
-              }
-              onClick={() => onSectorFilter(activeSector === key ? null : key)}
+              className={`cat-item ${!activeSector ? 'cat-item--active' : ''}`}
+              onClick={() => { onSectorFilter(null); setShowCategories(false) }}
             >
-              <span
-                className="sector-dot"
-                style={{ background: SECTOR_COLORS[key] }}
-              />
-              {label}
+              <span className="cat-dot" style={{ background: '#64748b' }} />
+              All sectors
             </button>
-          ))}
+            {Object.entries(SECTOR_LABELS).map(([key, label]) => (
+              <button
+                key={key}
+                className={`cat-item ${activeSector === key ? 'cat-item--active' : ''}`}
+                onClick={() => {
+                  onSectorFilter(activeSector === key ? null : key)
+                  setShowCategories(false)
+                }}
+              >
+                <span className="cat-dot" style={{ background: SECTOR_COLORS[key] }} />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </header>
   )
 }
